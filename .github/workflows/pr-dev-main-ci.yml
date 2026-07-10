@@ -1,0 +1,52 @@
+name: PR-TO-MAIN
+
+on:
+  pull_request:
+    branches:
+      - 'main'
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+permissions: read-all
+
+jobs:
+  validate-pr:
+    name: Validate Main PR
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate source branch
+        run: |
+          case "${{ github.event.pull_request.head.ref }}" in
+            development)
+              ;;
+            *)
+              echo "A branch de origem deve ser development para PRs na main."
+              exit 1
+              ;;
+          esac
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go/go.mod
+
+      - name: Resolve dependencies
+        run: cd go && go mod download
+
+      - name: Build project
+        run: cd go && go build ./...
+
+      - name: Run quality checks
+        run: cd go && go vet ./...
+
+      - name: Run unit tests
+        run: cd go && go test ./...
